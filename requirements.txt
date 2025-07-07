@@ -1,0 +1,8 @@
+torch
+numpy
+h5py
+hdf5plugin
+opencv-python
+pyyaml 
+numba 
+seaborn

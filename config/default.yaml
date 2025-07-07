@@ -1,0 +1,7 @@
+data:
+  data_path: ./datasets/
+
+ev_graph:
+  radius: 0.01
+  max_neighbors: 16
+  max_queue_size: 128
