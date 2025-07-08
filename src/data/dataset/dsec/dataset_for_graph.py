@@ -7,7 +7,7 @@ import numpy as np
 from omegaconf import OmegaConf
 from torch_geometric.data import Dataset
 
-from dsec_det.dataset import DSECDet
+from .dsec_det.dataset import DSECDet
 from .dsec_utils import (
     compute_class_mapping,
     crop_tracks,

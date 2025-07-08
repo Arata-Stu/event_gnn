@@ -1,8 +1,9 @@
 torch
+torch-geometric
 numpy
 h5py
 hdf5plugin
 opencv-python
-pyyaml 
+omegaconf
 numba 
 seaborn
