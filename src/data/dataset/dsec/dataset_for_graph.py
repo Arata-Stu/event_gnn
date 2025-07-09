@@ -80,7 +80,7 @@ class DSEC(Dataset):
 
         split_config = None
         if not demo:
-            split_config = OmegaConf.load(Path(__file__).parent / "dsec_split.yaml")
+            split_config = OmegaConf.load(Path(__file__).parent / "dsec_det" / "dsec_split.yaml")
             assert split in split_config.keys(), f"'{split}' not in {list(split_config.keys())}"
 
         self.dataset = DSECDet(root=root, split=split, sync="back", debug=debug, split_config=split_config)
