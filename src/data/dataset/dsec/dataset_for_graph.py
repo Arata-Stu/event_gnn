@@ -120,7 +120,7 @@ class DSEC(Dataset):
     def set_num_us(self, num_us):
         self.num_us = num_us
 
-    def len__(self):
+    def len(self):
         return sum(len(d) for d in self.image_index_pairs.values())
     
     def get(self, idx):
