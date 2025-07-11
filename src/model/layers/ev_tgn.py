@@ -2,6 +2,8 @@ import torch
 
 from omegaconf import DictConfig
 from torch_geometric.data import Batch, Data
+
+from src.utils.timers import cuda_timer_decorator
 from src.data.graph.ev_graph import SlidingWindowGraph
 
 
@@ -47,6 +49,7 @@ class EV_TGN(torch.nn.Module):
                                                  batch_size=batch_size,
                                                  radius=radius, delta_t_us=delta_t_us)
 
+    @cuda_timer_decorator
     def forward(self, events: Data, reset=True):
         if events.batch is None:
             events = Batch.from_data_list([events])
