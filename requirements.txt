@@ -1,4 +1,5 @@
 torch
+torchvision
 torch-geometric
 numpy
 h5py
