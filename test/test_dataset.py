@@ -2,11 +2,11 @@ import sys
 sys.path.append('../')
 
 from pathlib import Path
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 
-data_path = '../data/dsec'
+data_path = '/media/arata-22/AT_2TB/dataset/dsec'
 data_path = Path(data_path).resolve()
 split = 'train'
 dataset = DSEC(
