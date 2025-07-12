@@ -2,8 +2,8 @@ import sys
 sys.path.append('../')
 
 from pathlib import Path
+from torch_geometric.data import DataLoader
 
-from torch.utils.data import DataLoader
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 
 data_path = '../data/dsec'

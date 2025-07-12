@@ -3,7 +3,7 @@ sys.path.append('../')
 
 from pathlib import Path
 from omegaconf import OmegaConf
-from torch.utils.data import DataLoader
+from torch_geometric.data import DataLoader
 
 from src.model.layers.ev_tgn import EV_TGN
 from src.data.dataset.dsec.dataset_for_graph import DSEC
