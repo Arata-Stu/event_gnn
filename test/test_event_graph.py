@@ -51,6 +51,6 @@ for i, data in enumerate(test_loader):
     data = data.cuda(non_blocking=True)
     data = format_data(data)
 
-    graph = model(data)
+    graph = model(data, reset=True)
     print(f"Graph created for batch {i}: {graph}")
     print(f"Graph nodes: {graph.num_nodes}, edges: {graph.num_edges}")  # グラフのノードとエッジ数を表示
