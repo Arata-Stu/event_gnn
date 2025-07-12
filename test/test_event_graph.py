@@ -1,6 +1,7 @@
 import sys
 sys.path.append('../')
 
+from pathlib import Path
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
@@ -8,8 +9,9 @@ from src.model.layers.ev_tgn import EV_TGN
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 from src.utils.data_utils import format_data
 
-# --- データセットの準備（変更なし） ---
 data_path = '../data/dsec'
+data_path = Path(data_path).resolve()
+
 split = 'train'
 dataset = DSEC(
     root=data_path,
