@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import argparse
 import tqdm
 import hdf5plugin
@@ -9,7 +12,7 @@ import numpy as np
 
 from pathlib import Path
 
-from dsec_det.io import extract_from_h5_by_index, get_num_events
+from src.data.dataset.dsec.dsec_det.io import extract_from_h5_by_index, get_num_events
 
 
 def _compression_opts():

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Callable, Optional
+from functools import lru_cache
 
 import cv2
 import torch
@@ -8,6 +9,7 @@ from omegaconf import OmegaConf
 from torch_geometric.data import Dataset
 
 from .dsec_det.dataset import DSECDet
+from .dsec_det.directory import BaseDirectory
 from .dsec_utils import (
     compute_class_mapping,
     crop_tracks,
@@ -45,6 +47,13 @@ def interpolate_tracks(detections_0, detections_1, t):
         detections_out[k] = detections_0[k] * (1 - r) + detections_1[k] * r
 
     return detections_out
+
+class EventDirectory(BaseDirectory):
+    @property
+    @lru_cache(maxsize=1)
+    def event_file(self):
+        return self.root / "left/events_2x.h5"
+
 
 class DSEC(Dataset):
     MAPPING = dict(pedestrian="pedestrian", rider=None, car="car", bus="car", truck="car", bicycle=None,
@@ -85,8 +94,8 @@ class DSEC(Dataset):
 
         self.dataset = DSECDet(root=root, split=split, sync="back", debug=debug, split_config=split_config)
 
-        # for directory in self.dataset.directories.values():
-        #     directory.events = EventDirectory(directory.events.root)
+        for directory in self.dataset.directories.values():
+            directory.events = EventDirectory(directory.events.root)
 
         self.scale = scale
         self.width = self.dataset.width // scale
