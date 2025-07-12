@@ -49,7 +49,7 @@ class EV_TGN(torch.nn.Module):
                                                  batch_size=batch_size,
                                                  radius=radius, delta_t_us=delta_t_us)
 
-    @cuda_timer_decorator
+    @cuda_timer_decorator(device=torch.device("cuda"), timer_name="EV_TGN.forward")
     def forward(self, events: Data, reset=True):
         if events.batch is None:
             events = Batch.from_data_list([events])
