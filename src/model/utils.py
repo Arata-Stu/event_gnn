@@ -165,3 +165,13 @@ def shallow_copy(data):
             setattr(out, key, getattr(data, key).clone())
     return out
 
+def compute_pooling_at_each_layer(pooling_dim_at_output, num_layers):
+    py, px = map(int, pooling_dim_at_output.split("x"))
+    pooling_base = torch.tensor([1.0 / px, 1.0 / py, 1.0 / 1])
+    poolings = []
+    for i in range(num_layers):
+        pooling = pooling_base / 2 ** (3 - i)
+        pooling[-1] = 1
+        poolings.append(pooling)
+    poolings = torch.stack(poolings)
+    return poolings

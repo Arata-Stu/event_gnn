@@ -3,8 +3,12 @@ data:
 
 model:
   
-
   ev_graph:
     radius: 0.01
     max_neighbors: 16
     max_queue_size: 128
+
+  num_scales: 2
+  pooling_dim_at_output: 5x7
+
+  
