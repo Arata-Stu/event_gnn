@@ -5,7 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from torch_geometric.loader import DataLoader
 
-from src.model.layers.ev_tgn import EV_TGN
+from src.model.backbone.ev_gnn import EVGNN
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 from src.utils.data_utils import format_data
 
@@ -30,20 +30,12 @@ batch_size = 1  # バッチサイズを1に設定
 test_loader = DataLoader(dataset, follow_batch=['bbox', "bbox0"], batch_size=batch_size, shuffle=False, num_workers=0, drop_last=True)
 
 
-cfg_dict = {
-    'radius': 0.01,
-    'max_neighbors': 16,
-    'max_queue_size': 128
-}
+cfg_path = '../config/default.yaml'
 # OmegaConf.create()でDictConfigに変換
-cfg = OmegaConf.create(cfg_dict)
+cfg = OmegaConf.load(cfg_path)
 
 # --- モデルの初期化（変更なし） ---
-model = EV_TGN(cfg)
-
-assert model.radius == cfg.radius
-assert model.max_neighbors == cfg.max_neighbors
-assert model.max_queue_size == cfg.max_queue_size
+model = EVGNN(cfg, 240, 320)
 
 for i, data in enumerate(test_loader):
     if i >= 100:  # 最初の1つのバッチのみをテスト

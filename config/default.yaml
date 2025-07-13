@@ -8,6 +8,9 @@ model:
     max_neighbors: 16
     max_queue_size: 128
 
+  base_width: 0.5
+  after_pool_width: 1.0
+  net_stem_width: 1.0
   num_scales: 2
   pooling_dim_at_output: 5x7
 
