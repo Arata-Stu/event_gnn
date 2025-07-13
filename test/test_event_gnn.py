@@ -5,7 +5,7 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from torch_geometric.loader import DataLoader
 
-from src.model.backbone.ev_gnn import EVGNN
+from src.model.networks.net import Net
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 from src.utils.data_utils import format_data
 
@@ -35,7 +35,10 @@ cfg_path = '../config/default.yaml'
 cfg = OmegaConf.load(cfg_path)
 
 # --- モデルの初期化（変更なし） ---
-model = EVGNN(cfg, 240, 320)
+model = Net(cfg.model, 240, 320)
+model.eval()
+model.cuda()
+# model.cache_luts(radius=cfg.model.ev_graph.radius, height=dataset.height, width=dataset.width)
 
 for i, data in enumerate(test_loader):
     if i >= 100:  # 最初の1つのバッチのみをテスト
@@ -43,6 +46,5 @@ for i, data in enumerate(test_loader):
     data = data.cuda(non_blocking=True)
     data = format_data(data)
 
-    graph = model(data, reset=True)
-    print(f"Graph created for batch {i}: {graph}")
-    print(f"Graph nodes: {graph.num_nodes}, edges: {graph.num_edges}")  # グラフのノードとエッジ数を表示
+    output = model(data, reset=True)
+    print(f"Output for batch {i}: {output}")

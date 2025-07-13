@@ -1,5 +1,6 @@
 import torch
 
+from omegaconf import DictConfig
 from torch_geometric.data import Data
 
 from .components import BatchNormData, Linear
@@ -8,13 +9,13 @@ from ..utils import shallow_copy
 
 
 class ConvBlock(torch.nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, args, degree=1) -> None:
+    def __init__(self, in_channels: int, out_channels: int, cfg: DictConfig, degree=1) -> None:
         super(ConvBlock, self).__init__()
-        self.dim = args.edge_attr_dim
-        self.activation = getattr(torch.nn.functional, args.activation, torch.nn.functional.elu)
+        self.dim = cfg.edge_attr_dim
+        self.activation = getattr(torch.nn.functional, cfg.activation, torch.nn.functional.elu)
         self.conv = MySplineConv(in_channels=in_channels,
                                  out_channels=out_channels,
-                                 args=args,
+                                 cfg=cfg,
                                  bias=False,
                                  degree=degree)
 
@@ -29,16 +30,16 @@ class ConvBlock(torch.nn.Module):
 
 
 class ConvBlockWithSkip(torch.nn.Module):
-    def __init__(self, in_channel: int, out_channel: int, skip_in_channel: int, args) -> None:
+    def __init__(self, in_channel: int, out_channel: int, skip_in_channel: int, cfg: DictConfig) -> None:
         super(ConvBlockWithSkip, self).__init__()
-        self.dim = args.edge_attr_dim
+        self.dim = cfg.edge_attr_dim
 
         self.conv = MySplineConv(in_channels=in_channel,
                                  out_channels=out_channel,
-                                 args=args,
+                                 cfg=cfg,
                                  bias=False)
 
-        self.activation = getattr(torch.nn.functional, args.activation, torch.nn.functional.elu)
+        self.activation = getattr(torch.nn.functional, cfg.activation, torch.nn.functional.elu)
         self.norm = BatchNormData(in_channels=out_channel)
 
         self.lin = Linear(skip_in_channel, out_channel, bias=False)
@@ -57,13 +58,13 @@ class ConvBlockWithSkip(torch.nn.Module):
 
 
 class Layer(torch.nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, args) -> None:
+    def __init__(self, in_channels: int, out_channels: int, cfg: DictConfig) -> None:
         super(Layer, self).__init__()
         self.in_channel = in_channels
         self.out_channel = out_channels
 
-        self.conv_block1 = ConvBlock(in_channels, out_channels, args)
-        self.conv_block2 = ConvBlockWithSkip(out_channels, out_channels, in_channels, args=args)
+        self.conv_block1 = ConvBlock(in_channels, out_channels, cfg)
+        self.conv_block2 = ConvBlockWithSkip(out_channels, out_channels, in_channels, cfg=cfg)
 
     def forward(self, data: Data) -> torch.Tensor:
         data_skip = shallow_copy(data)

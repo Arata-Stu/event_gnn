@@ -2,12 +2,16 @@ import torch
 from torch import nn
 from omegaconf import DictConfig
 from torch_geometric.data import Data
+import torch_geometric.transforms as T
 
 from ..layers.ev_tgn import EV_TGN
+from ..layers.pooling import Pooling
 from ..layers.components import Cartesian
-from ..utils import compute_pooling_at_each_layer
+from ..layers.conv import Layer
+from ..utils import compute_pooling_at_each_layer, shallow_copy
+from src.utils.timers import CudaTimer as Timer
 
-class EVGNN(nn.Module):
+class EVGNNBackbone(nn.Module):
     def __init__(self, cfg: DictConfig, height: int, width: int):
         super().__init__()
         self.height = height
@@ -36,8 +40,86 @@ class EVGNN(nn.Module):
         effective_radius = 2*float(int(cfg.ev_graph.radius * width + 2) / width)
         self.edge_attrs = Cartesian(norm=True, cat=False, max_value=effective_radius)
 
+        self.conv_block1 = Layer(2+input_channels[0], output_channels[0], cfg=cfg)
+
+        cart1 = T.Cartesian(norm=True, cat=False, max_value=2*effective_radius)
+        self.pool1 = Pooling(poolings[0], width=width, height=height, batch_size=cfg.batch_size,
+                             transform=cart1, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
+        
+        self.layer2 = Layer(input_channels[1]+2, output_channels[1], cfg=cfg)
+
+        cart2 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[1])
+        self.pool2 = Pooling(poolings[1], width=width, height=height, batch_size=cfg.batch_size,
+                             transform=cart2, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
+
+        self.layer3 = Layer(input_channels[2]+2, output_channels[2],  cfg=cfg)
+
+        cart3 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[2])
+        self.pool3 = Pooling(poolings[2], width=width, height=height, batch_size=cfg.batch_size,
+                             transform=cart3, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
+
+        self.layer4 = Layer(input_channels[3]+2, output_channels[3],  cfg=cfg)
+
+        cart4 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[3])
+        self.pool4 = Pooling(poolings[3], width=width, height=height, batch_size=cfg.batch_size,
+                             transform=cart4, aggr='mean', keep_temporal_ordering=cfg.keep_temporal_ordering)
+
+        self.layer5 = Layer(input_channels[4]+2, output_channels[4],  cfg=cfg)
+
+        self.cache = []
+
     def forward(self, data: Data, reset=True):
         if hasattr(data, 'reset'):
             reset = data.reset
 
-        data = self.events_to_graph(data, reset=reset)
+        with Timer(data.x.device, 'EVGNNBackbone.forward.events_to_graph'):
+            data = self.events_to_graph(data, reset=reset)
+
+        with Timer(data.x.device, 'EVGNNBackbone.forward.cartesian'):
+            data = self.edge_attrs(data)
+            data.edge_attr = torch.clamp(data.edge_attr, min=0, max=1)
+            
+        with Timer(data.x.device, 'EVGNNBackbone.forward.conv_block1'):
+            rel_delta = data.pos[:, :2]
+            data.x = torch.cat((data.x, rel_delta), dim=1)
+
+            data = self.conv_block1(data)
+            data = self.pool1(data)
+
+        
+        with Timer(data.x.device, 'EVGNNBackbone.forward.layer2'):
+            rel_delta = data.pos[:,:2]
+            data.x = torch.cat((data.x, rel_delta), dim=1)
+
+            data = self.layer2(data)
+            data = self.pool2(data)
+
+        with Timer(data.x.device, 'EVGNNBackbone.forward.layer3'):
+            rel_delta = data.pos[:,:2]
+            data.x = torch.cat((data.x, rel_delta), dim=1)
+
+            data = self.layer3(data)
+            data = self.pool3(data)
+
+        with Timer(data.x.device, 'EVGNNBackbone.forward.layer4'):
+            rel_delta = data.pos[:,:2]
+            data.x = torch.cat((data.x, rel_delta), dim=1)
+
+            data = self.layer4(data)
+            data = self.pool4(data) 
+
+        out3 = shallow_copy(data)
+        out3.pooling = self.pool3.voxel_size[:3]
+
+        with Timer(data.x.device, 'EVGNNBackbone.forward.layer5'):
+            rel_delta = data.pos[:,:2]
+            data.x = torch.cat((data.x, rel_delta), dim=1)
+
+            data = self.layer5(data)    
+
+        out4 = data
+        out4.pooling = self.pool4.voxel_size[:3]
+
+        output = [out3, out4]
+
+        return output[-self.num_scales:]

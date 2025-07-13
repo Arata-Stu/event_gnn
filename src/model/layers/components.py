@@ -31,13 +31,13 @@ class Linear(torch.nn.Module):
 class Cartesian(torch.nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        T.Cartesian.__init__(self, *args, **kwargs)
+        self.cartesian_transform = T.Cartesian(*args, **kwargs)
 
-    def forward(self, data):
-        if data.edge_index.shape[1] > 0:
-            ## エッジがある場合、エッジ属性を計算して返す
-            return T.Cartesian.__call__(self, data)
+    def forward(self, data: Data) -> Data:
+        if data.edge_index is not None and data.edge_index.shape[1] > 0:
+            ## エッジがある場合、保持しているインスタンスを呼び出して変換を適用する
+            return self.cartesian_transform(data)
         else:
-            ## エッジがない場合、空のエッジ属性を返す
+            ## エッジがない場合、空のエッジ属性を作成する
             data.edge_attr = torch.zeros((0, 3), dtype=data.x.dtype, device=data.x.device)
             return data

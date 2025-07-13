@@ -1,5 +1,6 @@
 import torch
 
+from omegaconf import DictConfig
 from torch_geometric.nn.conv import SplineConv
 from torch_geometric.data import Data
 from torch_geometric.transforms.to_sparse_tensor import ToSparseTensor
@@ -7,11 +8,11 @@ from torch_spline_conv import spline_basis
 
 
 class MySplineConv(SplineConv):
-    def __init__(self, in_channels, out_channels, args, bias=False, degree=1, **kwargs):
+    def __init__(self, in_channels, out_channels, cfg: DictConfig, bias=False, degree=1, **kwargs):
         self.reproducible = True
         self.to_sparse_tensor = ToSparseTensor(attr="edge_attr", remove_edge_index=False)
         super().__init__(in_channels=in_channels, out_channels=out_channels, bias=bias, degree=degree,
-                         dim=args.edge_attr_dim, aggr=args.aggr, kernel_size=args.kernel_size)
+                         dim=cfg.edge_attr_dim, aggr=cfg.aggr, kernel_size=cfg.kernel_size)
 
     def init_lut(self, height, width, rx=None, Mx=None, ry=None, My=None):
         # attr is assumed to be computed as attr = (x_i - x_j)/(2M) + 0.5
@@ -24,7 +25,7 @@ class MySplineConv(SplineConv):
                                                    [             0, 2 * My * height, - My * height + ry]])
 
         # generate all possible dx, dy
-        dxy = torch.stack(torch.meshgrid(torch.arange(-rx, rx+1), torch.arange(-ry, ry+1))).float()
+        dxy = torch.stack(torch.meshgrid(torch.arange(-rx, rx+1), torch.arange(-ry, ry+1), indexing='ij')).float()
         dxy[0] = dxy[0] / (2 * Mx * width) + 0.5
         dxy[1] = dxy[1] / (2 * My * height) + 0.5
         edge_attr = dxy.view((2,-1)).t()
