@@ -14,14 +14,14 @@ class EVGNN(nn.Module):
         self.width = width
         
         ## 出力される特徴マップのスケール種類
-        self.num_scales = cfg.model.num_scales
+        self.num_scales = cfg.num_scales
 
         channels = [1,
-                    int(cfg.model.base_width*32),
-                    int(cfg.model.after_pool_width*64),
-                    int(cfg.model.net_stem_width*128),
-                    int(cfg.model.net_stem_width*128),
-                    int(cfg.model.net_stem_width*128)]
+                    int(cfg.base_width*32),
+                    int(cfg.after_pool_width*64),
+                    int(cfg.net_stem_width*128),
+                    int(cfg.net_stem_width*128),
+                    int(cfg.net_stem_width*128)]
         
         input_channels = channels[:-1]
         output_channels = channels[1:]
