@@ -36,7 +36,7 @@ class EVGNN(nn.Module):
         effective_radius = 2*float(int(cfg.ev_graph.radius * width + 2) / width)
         self.edge_attrs = Cartesian(norm=True, cat=False, max_value=effective_radius)
 
-    def forward(self, x: Data, reset=True):
+    def forward(self, data: Data, reset=True):
         if hasattr(data, 'reset'):
             reset = data.reset
 
