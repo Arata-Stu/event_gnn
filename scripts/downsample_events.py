@@ -130,13 +130,18 @@ def _filter_events_resize(x, y, p, mask, change_map, fx, fy):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("""Downsample events""")
-    parser.add_argument("--input_path", type=Path, required=True, help="Path to input events.h5. ")
+    parser.add_argument("--input_path", type=Path, required=True, help="Path to input events.h5.")
     parser.add_argument("--output_path", type=Path, required=True, help="Path where output events.h5 will be written.")
     parser.add_argument("--input_height", type=int, default=480, help="Height of the input events resolution.")
-    parser.add_argument("--input_width", type=int, default=640, help="Width of the input events resolution")
-    parser.add_argument("--output_height", type=int, default=240, help="Height of the output events resolution.")
-    parser.add_argument("--output_width", type=int, default=320, help="Width of the output events resolution.")
+    parser.add_argument("--input_width", type=int, default=640, help="Width of the input events resolution.")
+    parser.add_argument("--scale", type=int, required=True, help="Integer factor to downsample resolution by (e.g., 2).")
     args = parser.parse_args()
+
+    # scale から出力解像度を計算
+    output_height = args.input_height // args.scale
+    output_width = args.input_width // args.scale
+    
+    print(f"Downsampling from {args.input_width}x{args.input_height} to {output_width}x{output_height} (scale: {args.scale})")
 
     num_events = get_num_events(args.input_path)
     num_events_per_chunk = 100000
@@ -149,22 +154,35 @@ if __name__ == '__main__':
     for i in range(num_iterations):
         events = extract_from_h5_by_index(args.input_path, i * num_events_per_chunk, (i+1) * num_events_per_chunk)
         events['p'] = 2 * events['p'].astype("int8") - 1
-        downsampled_events, change_map = downsample_events(events, change_map=change_map, input_height=args.input_height, input_width=args.input_width,
-                                                      output_height=args.output_height, output_width=args.output_width)
+        downsampled_events, change_map = downsample_events(events,
+                                                           change_map=change_map,
+                                                           input_height=args.input_height,
+                                                           input_width=args.input_width,
+                                                           output_height=output_height,
+                                                           output_width=output_width)
         
-        events['p'] = ((events['p'] + 1)//2).astype("int8")
+        # NOTE: The polarity 'p' in the original events dictionary is modified in-place
+        # by the downsample_events function logic implicitly.
+        # However, the downsampled_events dictionary contains the correct, downsampled events.
+        # The polarity of the *downsampled* events needs to be converted back.
+        # Therefore, we should apply the polarity conversion to `downsampled_events['p']`.
+        ## events['p'] = ((events['p'] + 1)//2).astype("int8")
+        downsampled_events['p'] = ((downsampled_events['p'] + 1)//2).astype("uint8")
         writer.add_data(downsampled_events)
         pbar.update(1)
 
     events = extract_from_h5_by_index(args.input_path, num_iterations * num_events_per_chunk, num_events)
-    downsampled_events, change_map = downsample_events(events, change_map=change_map, input_height=args.input_height,
+    events['p'] = 2 * events['p'].astype("int8") - 1 # Also apply polarity conversion for the last chunk
+    downsampled_events, change_map = downsample_events(events,
+                                                       change_map=change_map,
+                                                       input_height=args.input_height,
                                                        input_width=args.input_width,
-                                                       output_height=args.output_height, output_width=args.output_width)
+                                                       output_height=output_height,
+                                                       output_width=output_width)
+    
+    downsampled_events['p'] = ((downsampled_events['p'] + 1)//2).astype("uint8")
     writer.add_data(downsampled_events)
     pbar.update(1)
 
     writer.create_ms_to_idx()
-
-
-
 
