@@ -1,17 +1,5 @@
 #!/bin/bash
 
-# DSEC_ROOT=$1
-# for split in train test; do
-#     for sequence in $DSEC_ROOT/$split/*/; do
-#         infile=$sequence/events/left/events.h5
-#         outfile=$sequence/events/left/events_2x.h5
-#         python3 ./downsample_events.py --input_path $infile --output_path $outfile
-#     done
-# done
-
-
-#!/bin/bash
-
 # スクリプトの引数としてDSECのルートディレクトリを受け取る
 if [ -z "$1" ]; then
     echo "使用法: $0 <DSEC_ROOT>"
@@ -55,8 +43,8 @@ for sequence in "${sequences[@]}"; do
 
     # 入力ファイルが存在するか確認
     if [ -f "$infile" ]; then
-        # ダウンサンプリングを実行
-        python3 ./downsample_events.py --input_path "$infile" --output_path "$outfile"
+        # ダウンサンプリングを実行（--scale 2 を追加）
+        python3 ./downsample_events.py --input_path "$infile" --output_path "$outfile" --scale 2
     else
         echo "  -> 警告: 入力ファイルが見つかりません: $infile"
     fi
