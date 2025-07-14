@@ -3,14 +3,16 @@ from torch import nn
 from omegaconf import DictConfig
 from torch_geometric.data import Data
 
-from src.model.backbone.ev_gnn import EVGNNBackbone
+# from src.model.backbone.ev_gnn import EVGNNBackbone
+from src.model.backbone.ev_rgb_gnn import EVRGBGNNBackbone 
+from src.model.utils import voxel_size_to_params
 
 class Net(nn.Module):
     def __init__(self, cfg: DictConfig, height: int, width: int):
         super().__init__()
         self.height = height
         self.width = width
-        self.backbone = EVGNNBackbone(cfg, height, width)
+        self.backbone = EVRGBGNNBackbone(cfg, height, width)
 
     def cache_luts(self, width, height, radius):
         M = 2 * float(int(radius * width + 2) / width)

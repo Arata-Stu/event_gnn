@@ -6,6 +6,8 @@ from omegaconf import OmegaConf
 from torch_geometric.loader import DataLoader
 
 from src.model.networks.net import Net
+from src.model.layers.ev_tgn import EV_TGN
+
 from src.data.dataset.dsec.dataset_for_graph import DSEC
 from src.utils.data_utils import format_data
 
@@ -34,8 +36,8 @@ cfg_path = '../config/default.yaml'
 # OmegaConf.create()でDictConfigに変換
 cfg = OmegaConf.load(cfg_path)
 
-# --- モデルの初期化（変更なし） ---
-model = Net(cfg.model, 240, 320)
+# model = Net(cfg.model, 240, 320)
+model = EV_TGN(cfg.model.ev_graph)
 model.eval()
 model.cuda()
 # model.cache_luts(radius=cfg.model.ev_graph.radius, height=dataset.height, width=dataset.width)
@@ -47,4 +49,5 @@ for i, data in enumerate(test_loader):
     data = format_data(data)
 
     output = model(data, reset=True)
-    print(f"Output for batch {i}: {output}")
+    # print(len(data.x))
+    # print(output.edge_index.shape)
