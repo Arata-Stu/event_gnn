@@ -41,9 +41,6 @@ for sequence in "${sequences[@]}"; do
     infile="$sequence/events/left/events.h5"
     outfile="$sequence/events/left/events_2x_new.h5"
 
-    echo "  -> 出力先: $outfile"
-    rm -f "$outfile"
-
     # # 入力ファイルが存在するか確認
     if [ -f "$infile" ]; then
         # ダウンサンプリングを実行（--scale 2 を追加）
