@@ -39,7 +39,9 @@ for sequence in "${sequences[@]}"; do
 
     # ファイルパスを定義
     infile="$sequence/events/left/events.h5"
-    outfile="$sequence/events/left/events_2x_new.h5"
+    outfile="$sequence/events/left/events_2x.h5"
+
+    rm -f "$outfile"  # 出力ファイルが存在する場合は削除
 
     # # 入力ファイルが存在するか確認
     if [ -f "$infile" ]; then
