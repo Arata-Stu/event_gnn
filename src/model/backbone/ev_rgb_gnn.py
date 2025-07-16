@@ -94,6 +94,7 @@ class EVRGBGNNBackbone(nn.Module):
             input_channels = [input_channels[i] + self.net.feature_channels[i] for i in range(len(input_channels))]
 
         output_channels = channels[1:]
+        self.out_channels = output_channels[-2:]
 
         self.events_to_graph = EV_TGN(model_cfg.ev_graph)
 
