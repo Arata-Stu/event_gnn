@@ -13,6 +13,15 @@ from ..utils import bboxes_iou, meshgrid
 from .losses import IOUloss
 from .network_blocks import BaseConv, DWConv
 
+def format_losses(loss_tuple):
+    return {
+        "loss": loss_tuple[0],
+        "iou_loss": loss_tuple[1],
+        "conf_loss": loss_tuple[2],
+        "cls_loss": loss_tuple[3],
+        "l1_loss": loss_tuple[4],
+        "num_fg": loss_tuple[5],
+    }
 
 class YOLOXHead(nn.Module):
     def __init__(

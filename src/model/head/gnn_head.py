@@ -9,6 +9,7 @@ from ..layers.conv import ConvBlock
 from ..utils import shallow_copy, init_grid_and_stride
 from ..head.cnn_head import CNNHead
 from ..layers.yolox.models.losses import IOUloss
+from ..layers.yolox.models.yolo_head import format_losses
 
 class GNNHead(YOLOXHead):
     def __init__(
@@ -130,11 +131,10 @@ class GNNHead(YOLOXHead):
             self.collect_outputs(cls_output, reg_output, obj_output, 1, self.strides[1], ret=hybrid_out)
 
         if self.training:
-            # if we are only training the image detectors (pretraining),
-            # we only need to minimize the loss at detections from the image branch.
             imgs = None
+            
             if self.use_image:
-                losses_image = self.get_losses(
+                losses_image_tuple = self.get_losses(
                     imgs,
                     image_out['x_shifts'],
                     image_out['y_shifts'],
@@ -144,28 +144,30 @@ class GNNHead(YOLOXHead):
                     image_out['origin_preds'],
                     dtype=image_out['x_shifts'][0].dtype,
                 )
+                losses_image = format_losses(losses_image_tuple)
 
                 if not self.pretrain_cnn:
-                    losses_events  = self.get_losses(
-                    imgs,
-                    hybrid_out['x_shifts'],
-                    hybrid_out['y_shifts'],
-                    hybrid_out['expanded_strides'],
-                    labels,
-                    torch.cat(hybrid_out['outputs'], 1),
-                    hybrid_out['origin_preds'],
-                    dtype=xin[0].x.dtype,
-                )
+                    losses_events_tuple = self.get_losses(
+                        imgs,
+                        hybrid_out['x_shifts'],
+                        hybrid_out['y_shifts'],
+                        hybrid_out['expanded_strides'],
+                        labels,
+                        torch.cat(hybrid_out['outputs'], 1),
+                        hybrid_out['origin_preds'],
+                        dtype=xin[0].x.dtype,
+                    )
+                    losses_events = format_losses(losses_events_tuple)
 
-                    losses_image = list(losses_image)
-                    losses_events = list(losses_events)
+                    combined_losses = {
+                        key: losses_image[key] + losses_events[key]
+                        for key in losses_image
+                    }
+                    return combined_losses
 
-                    for i in range(5):
-                        losses_image[i] = losses_image[i] + losses_events[i]
-
-                return losses_image
+                return losses_image  # pretrain_cnnがTrueの場合はimageの損失のみ返す
             else:
-                return self.get_losses(
+                losses_tuple = self.get_losses(
                     imgs,
                     hybrid_out['x_shifts'],
                     hybrid_out['y_shifts'],
@@ -175,6 +177,7 @@ class GNNHead(YOLOXHead):
                     hybrid_out['origin_preds'],
                     dtype=xin[0].x.dtype,
                 )
+                return format_losses(losses_tuple)
         else:
             out = image_out['outputs'] if self.no_events else hybrid_out['outputs']
 
