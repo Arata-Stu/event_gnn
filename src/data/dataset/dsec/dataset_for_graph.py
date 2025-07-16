@@ -87,6 +87,9 @@ class DSEC(Dataset):
 
         Dataset.__init__(self)
 
+        if isinstance(root, str):
+            root = Path(root)
+
         split_config = None
         if not demo:
             split_config = OmegaConf.load(Path(__file__).parent / "dsec_det" / "dsec_split.yaml")
