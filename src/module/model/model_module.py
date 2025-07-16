@@ -76,7 +76,7 @@ class ModelModule(pl.LightningModule):
         if hasattr(data, 'bbox'):
             targets = convert_to_evaluation_format(data)
             # バッファを更新
-            self.buffer.update(detections, targets)
+            self.buffer.update(detections, targets, dataset=self.cfg.data.name)
         
 
     def on_validation_epoch_end(self):
@@ -101,8 +101,8 @@ class ModelModule(pl.LightningModule):
         
         if hasattr(data, 'bbox'):
             targets = convert_to_evaluation_format(data)
-            self.buffer.update(detections, targets) 
-            
+            self.buffer.update(detections, targets, dataset=self.cfg.data.name)
+
     def on_test_epoch_end(self):
         """テストエポック終了時に評価指標を計算し、ログに記録"""
         metrics = self.buffer.compute()
