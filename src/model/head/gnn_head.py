@@ -22,7 +22,12 @@ class GNNHead(YOLOXHead):
         pretrain_cnn=False,
         model_cfg: DictConfig = None
     ):
-        YOLOXHead.__init__(self, num_classes, model_cfg.yolo_stem_width, strides, in_channels, act, depthwise)
+        YOLOXHead.__init__(self,
+                           num_classes=model_cfg.num_classes,
+                           strides=strides,
+                           in_channels=in_channels,
+                           act=act,
+                           depthwise=depthwise)
 
         self.pretrain_cnn = pretrain_cnn
         self.num_scales = model_cfg.num_scales
