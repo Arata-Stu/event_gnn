@@ -6,7 +6,7 @@ def get_ckpt_callback(config: DictConfig) -> ModelCheckpoint:
 
     prefix = 'val'
     if model_name in {'dagr'}:
-        metric = 'AP'
+        metric = 'mAP'
         mode = 'max'
     else:
         raise NotImplementedError
