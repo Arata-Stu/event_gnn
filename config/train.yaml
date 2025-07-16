@@ -48,7 +48,7 @@ model:
 training:
   precision: 16
   max_epochs: 100
-  max_steps: 400000
+  max_steps: 100000
   learning_rate: 0.0002
   weight_decay: 0.00001
   limit_train_batches: 1.0
