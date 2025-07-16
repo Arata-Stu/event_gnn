@@ -15,10 +15,10 @@ class Net(nn.Module):
         self.backbone = EVRGBGNNBackbone(cfg, height, width)
 
     def cache_luts(self, width, height, radius):
-        M = 2 * float(int(radius * width + 2) / width)
-        r = int(radius * width+1)
-        self.backbone.conv_block1.conv_block1.conv.init_lut(height=height, width=width, Mx=M, rx=r)
-        self.backbone.conv_block1.conv_block2.conv.init_lut(height=height, width=width, Mx=M, rx=r)
+        # M = 2 * float(int(radius * width + 2) / width)
+        # r = int(radius * width+1)
+        # self.backbone.conv_block1.conv_block1.conv.init_lut(height=height, width=width, Mx=M, rx=r)
+        # self.backbone.conv_block1.conv_block2.conv.init_lut(height=height, width=width, Mx=M, rx=r)
 
         # rx, ry, M = voxel_size_to_params(self.backbone.pool1, height, width)
         # self.backbone.layer2.conv_block1.conv.init_lut(height=height, width=width, Mx=M, rx=rx, ry=ry)
