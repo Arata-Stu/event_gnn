@@ -1,5 +1,6 @@
 import torch
 
+from omegaconf import DictConfig
 from torch_geometric.transforms import BaseTransform
 from torch_geometric.data import Data
 from typing import List
@@ -284,12 +285,12 @@ class Augmentations:
         Crop([0, 0], [1, 1]),
     ])
 
-    def __init__(self, args):
+    def __init__(self, aug_cfg: DictConfig):
         self.transform_training = T.Compose([
-            RandomHFlip(p=args.aug_p_flip),
+            RandomHFlip(p=aug_cfg.p_flip),
             RandomCrop([0.75, 0.75], p=0.2),
-            RandomZoom(zoom=[1, args.aug_zoom], subsample=True),
-            RandomTranslate([args.aug_trans, args.aug_trans, 0]),
+            RandomZoom(zoom=[1, aug_cfg.zoom], subsample=True),
+            RandomTranslate([aug_cfg.trans, aug_cfg.trans, 0]),
             Crop([0, 0], [1, 1]),
         ])
 
