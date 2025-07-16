@@ -48,7 +48,7 @@ class ModelModule(pl.LightningModule):
     def validation_step(self, data, batch_idx):
         data = format_data(data)
         predictions = self.model(data, reset=True)
-        detections = postprocess_network_output(predictions, self.backbone.num_classes, self.conf_threshold, self.nms_threshold, filtering=filtering,
+        detections = postprocess_network_output(predictions, self.model.backbone.num_classes, self.conf_threshold, self.nms_threshold, filtering=filtering,
                                                 height=self.height, width=self.width)
 
         ret = [detections]
@@ -62,7 +62,7 @@ class ModelModule(pl.LightningModule):
     def test_step(self, data, batch_idx):
         data = format_data(data)
         outputs = self.model(data, reset=True)
-        detections = postprocess_network_output(outputs, self.backbone.num_classes, self.conf_threshold, self.nms_threshold, filtering=filtering,
+        detections = postprocess_network_output(outputs, self.model.backbone.num_classes, self.conf_threshold, self.nms_threshold, filtering=filtering,
                                                 height=self.height, width=self.width)
 
         ret = [detections]
