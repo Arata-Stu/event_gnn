@@ -19,6 +19,7 @@ class EVGNNBackbone(nn.Module):
         
         ## 出力される特徴マップのスケール種類
         self.num_scales = cfg.num_scales
+        self.use_image = cfg.use_image
 
         channels = [1,
                     int(cfg.base_width*32),
