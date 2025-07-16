@@ -144,93 +144,80 @@ class EVRGBGNNBackbone(nn.Module):
         if self.use_image:
             with Timer(data.x.device, 'EVGNNBackbone.forward.net'):
                 image_feat, image_outputs = self.net(data.image)
-            
+
         if hasattr(data, 'reset'):
             reset = data.reset
 
         with Timer(data.x.device, 'EVGNNBackbone.forward.events_to_graph'):
             data = self.events_to_graph(data, reset=reset)
 
+        # --- Stage 1: conv_block1 ---
         if self.use_image:
             data.x = sampling_skip(data, image_feat[0].detach())
             data.skipped = True
             data.num_image_channels = image_feat[0].shape[1]
 
-        with Timer(data.x.device, 'EVGNNBackbone.forward.cartesian'):
+        with Timer(data.x.device, 'EVGNNBackbone.forward.cartesian_and_conv1'):
             data = self.edge_attrs(data)
             data.edge_attr = torch.clamp(data.edge_attr, min=0, max=1)
-            
-        with Timer(data.x.device, 'EVGNNBackbone.forward.conv_block1'):
             rel_delta = data.pos[:, :2]
             data.x = torch.cat((data.x, rel_delta), dim=1)
-
             data = self.conv_block1(data)
 
-            if self.use_image:
-                data.x = sampling_skip(data, image_feat[1].detach())
-
-            data = self.pool1(data)
-
+        # --- Stage 2: pool1 -> layer2 ---
         if self.use_image:
-            data.skipped = True
-            data.num_image_channels = image_feat[1].shape[1]
+            data.x = sampling_skip(data, image_feat[1].detach())
 
-                    
-        with Timer(data.x.device, 'EVGNNBackbone.forward.layer2'):
+        with Timer(data.x.device, 'EVGNNBackbone.forward.pool1_and_layer2'):
+            data = self.pool1(data)
+            if self.use_image:
+                data.skipped = True
+                data.num_image_channels = image_feat[1].shape[1]
             rel_delta = data.pos[:,:2]
             data.x = torch.cat((data.x, rel_delta), dim=1)
-
             data = self.layer2(data)
 
-            if self.use_image:
-                data.x = sampling_skip(data, image_feat[2].detach())
+        # --- Stage 3: pool2 -> layer3 ---
+        if self.use_image:
+            data.x = sampling_skip(data, image_feat[2].detach())
 
+        with Timer(data.x.device, 'EVGNNBackbone.forward.pool2_and_layer3'):
             data = self.pool2(data)
-
-        if self.use_image:
-            data.skipped = True
-            data.num_image_channels = image_feat[2].shape[1]
-
-
-        with Timer(data.x.device, 'EVGNNBackbone.forward.layer3'):
+            if self.use_image:
+                data.skipped = True
+                data.num_image_channels = image_feat[2].shape[1]
             rel_delta = data.pos[:,:2]
             data.x = torch.cat((data.x, rel_delta), dim=1)
-
             data = self.layer3(data)
-            if self.use_image:
-                data.x = sampling_skip(data, image_feat[3].detach())
 
-            data = self.pool3(data)
-
+        # --- Stage 4: pool3 -> layer4 ---
         if self.use_image:
-            data.skipped = True
-            data.num_image_channels = image_feat[3].shape[1]
+            data.x = sampling_skip(data, image_feat[3].detach())
 
-
-        with Timer(data.x.device, 'EVGNNBackbone.forward.layer4'):
+        with Timer(data.x.device, 'EVGNNBackbone.forward.pool3_and_layer4'):
+            data = self.pool3(data)
+            if self.use_image:
+                data.skipped = True
+                data.num_image_channels = image_feat[3].shape[1]
             rel_delta = data.pos[:,:2]
             data.x = torch.cat((data.x, rel_delta), dim=1)
-
             data = self.layer4(data)
-
-            if self.use_image:
-                data.x = sampling_skip(data, image_feat[3].detach())
-
-            data = self.pool4(data) 
-
-        if self.use_image:
-            data.skipped = True
-            data.num_image_channels = image_feat[4].shape[1]
-
 
         out3 = shallow_copy(data)
         out3.pooling = self.pool3.voxel_size[:3]
 
-        with Timer(data.x.device, 'EVGNNBackbone.forward.layer5'):
+        # --- Stage 5: pool4 -> layer5 ---
+        if self.use_image:
+            data.x = sampling_skip(data, image_feat[4].detach())
+
+        with Timer(data.x.device, 'EVGNNBackbone.forward.pool4_and_layer5'):
+            data = self.pool4(data)
+            if self.use_image:
+                data.skipped = True
+                data.num_image_channels = image_feat[4].shape[1]
             rel_delta = data.pos[:,:2]
             data.x = torch.cat((data.x, rel_delta), dim=1)
-
-            data = self.layer5(data)    
+            data = self.layer5(data)
 
         out4 = data
         out4.pooling = self.pool4.voxel_size[:3]
