@@ -23,7 +23,7 @@ class GNNHead(YOLOXHead):
         model_cfg: DictConfig = None
     ):
         YOLOXHead.__init__(self,
-                           num_classes=model_cfg.num_classes,
+                           num_classes=num_classes,
                            strides=strides,
                            in_channels=in_channels,
                            act=act,
