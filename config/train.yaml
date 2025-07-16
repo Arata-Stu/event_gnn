@@ -83,6 +83,13 @@ logging:
       every_n_epochs: 1
       n_samples: 8
 
+hardware:
+  num_workers:
+    train: 6
+    eval: 2
+  gpus: 0 # Either a single integer (e.g. 3) or a list of integers (e.g. [3,5,6])
+  dist_backend: "nccl"
+
 reproduce:
   seed_everything: null # Union[int, null]
   deterministic_flag: False # Must be true for fully deterministic behaviour (slows down training)
