@@ -9,7 +9,7 @@ from ..utils import init_subnetwork, voxel_size_to_params
 from ..head.gnn_head import GNNHead
 
 class DAGR(nn.Module):
-    def __init__(self, cfg: DictConfig , height, width):
+    def __init__(self, model_cfg: DictConfig , height, width):
         super().__init__()
         self.conf_threshold = 0.001
         self.nms_threshold = 0.65
@@ -17,17 +17,16 @@ class DAGR(nn.Module):
         self.height = height
         self.width = width
 
-        self.backbone = EVRGBGNNBackbone(cfg, height=height, width=width)
+        self.backbone = EVRGBGNNBackbone(model_cfg, height=height, width=width)
         self.head = GNNHead(num_classes=self.backbone.num_classes,
                        in_channels=self.backbone.out_channels,
                        in_channels_cnn=self.backbone.out_channels_cnn,
                        strides=self.backbone.strides,
-                       pretrain_cnn=cfg.pretrain_cnn,
-                       args=cfg)
+                       pretrain_cnn=model_cfg.pretrain_cnn,
+                       model_cfg=model_cfg)
 
-        
-        if "img_net_checkpoint" in cfg and cfg.img_net_checkpoint is not None:
-            state_dict = torch.load(cfg.img_net_checkpoint)
+        if "img_net_checkpoint" in model_cfg and model_cfg.img_net_checkpoint is not None:
+            state_dict = torch.load(model_cfg.img_net_checkpoint)
             init_subnetwork(self, state_dict['ema'], "backbone.net.", freeze=True)
             init_subnetwork(self, state_dict['ema'], "head.cnn_head.")
 

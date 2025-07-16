@@ -1,8 +1,6 @@
 from typing import Optional
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import lightning.pytorch as pl
 from omegaconf import DictConfig
 from typing import Any, Optional
@@ -19,7 +17,7 @@ class ModelModule(pl.LightningModule):
         self.cfg = cfg
         height = 240
         width = 320
-        self.model = DAGR(cfg, height=height, width=width)
+        self.model = DAGR(cfg.model, height=height, width=width)
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.started_training = True
