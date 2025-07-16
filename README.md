@@ -12,6 +12,7 @@ pip3 install --no-build-isolation torch_scatter
 pip3 install --no-build-isolation torch-cluster
 pip3 install --no-build-isolation torch-sparse
 
+mkdir lib
 cd lib
 git clone https://github.com/facebookresearch/detectron2.git
 cd detectron2
