@@ -1,42 +1,32 @@
-from typing import Optional
-
 import torch
 import lightning.pytorch as pl
 from omegaconf import DictConfig
-from typing import Any, Optional
+from typing import Any
 
 from src.utils.gradients import fix_gradients
 from src.utils.data_utils import format_data
 from src.model.utils import convert_to_training_format, postprocess_network_output, convert_to_evaluation_format
 from src.model.networks.dagr import DAGR
+from src.utils.buffers import DetectionBuffer
+from src.utils.data_utils import dataset_2_hw, dataset_2_classes
 
 class ModelModule(pl.LightningModule):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         
         self.cfg = cfg
-        self.height = 215
-        self.width = 320
-        # self.batch_size は config から取得しますが、実際のステップでは動的な値を使います
-        self.batch_size_from_cfg = cfg.data.batch_size 
+        self.height, self.width = dataset_2_hw[cfg.dataset.name]
+        self.classes = dataset_2_classes[cfg.dataset.name]
         self.model = DAGR(cfg.model, height=self.height, width=self.width)
-        
-        self.save_hyperparameters(cfg)
 
-    def setup(self, stage: Optional[str] = None) -> None:
-        self.started_training = True
-        if stage == "fit" or stage is None:
-            self.train_cfg = self.cfg.training
-        elif stage == "val":
-            pass
-        elif stage == "test":
-            pass
+        self.buffer = DetectionBuffer(height=self.height, width=self.width, classes=self.classes)
+
+        self.save_hyperparameters(cfg)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
     def training_step(self, data, batch_idx):
-        self.started_training = True
         data = format_data(data)
         correct_batch_size = data.num_graphs
         
@@ -46,13 +36,13 @@ class ModelModule(pl.LightningModule):
             targets = (targets, targets0)
 
         outputs = self.model(data, reset=True, targets=targets)
-        loss_dict = {k: v for k, v in outputs.items() if "loss" in k}
-        loss = loss_dict.pop("loss")
+        loss_dict = {f"train/{k}": v for k, v in outputs.items() if "loss" in k}
+        loss = loss_dict.pop("train/loss")
         
         self.log_dict(loss_dict, 
                       on_step=True, 
                       on_epoch=True, 
-                      prog_bar=True, 
+                      prog_bar=False, 
                       logger=True,
                       batch_size=correct_batch_size) 
                       
@@ -66,50 +56,76 @@ class ModelModule(pl.LightningModule):
 
         return loss
 
+    def on_validation_epoch_start(self):
+        """バリデーションエポック開始時にバッファをクリア"""
+        self.buffer.clear()
+
     def validation_step(self, data, batch_idx):
+        """各バッチで予測を行い、結果をバッファに蓄積"""
         data = format_data(data)
+        
+        # 予測の実行
         predictions = self.model(data, reset=True)
-        detections = postprocess_network_output(predictions, self.model.backbone.num_classes, self.model.conf_threshold, self.model.nms_threshold, filtering=True,
-                                                height=self.height, width=self.width)
+        detections = postprocess_network_output(
+            predictions, 
+            self.model.backbone.num_classes, 
+            self.model.conf_threshold, 
+            self.model.nms_threshold, 
+            filtering=True,
+            height=self.height, 
+            width=self.width
+        )
 
-        ret = [detections]
-
+        # 正解ラベルの取得
         if hasattr(data, 'bbox'):
             targets = convert_to_evaluation_format(data)
+            # バッファを更新
+            self.buffer.update(detections, targets)
+        
 
-        loss = None
-        return loss
+    def on_validation_epoch_end(self):
+        """バリデーションエポック終了時に評価指標を計算し、ログに記録"""
+        metrics = self.buffer.compute()
+        log_metrics = {f"val/{k}": v for k, v in metrics.items()}
+        self.log_dict(log_metrics, prog_bar=True, logger=True)
 
     def test_step(self, data, batch_idx):
+        """テストステップでの予測とバッファ更新"""
         data = format_data(data)
         outputs = self.model(data, reset=True)
-        detections = postprocess_network_output(outputs, self.model.backbone.num_classes, self.model.conf_threshold, self.model.nms_threshold, filtering=True,
-                                                height=self.height, width=self.width)
-
-        ret = [detections]
-
+        detections = postprocess_network_output(
+            outputs, 
+            self.model.backbone.num_classes, 
+            self.model.conf_threshold, 
+            self.model.nms_threshold, 
+            filtering=True,
+            height=self.height, 
+            width=self.width
+        )
+        
         if hasattr(data, 'bbox'):
             targets = convert_to_evaluation_format(data)
-
-        loss = None
-        return loss
+            self.buffer.update(detections, targets) 
+            
+    def on_test_epoch_end(self):
+        """テストエポック終了時に評価指標を計算し、ログに記録"""
+        metrics = self.buffer.compute()
+        log_metrics = {f"test/{k}": v for k, v in metrics.items()}
+        self.log_dict(log_metrics, prog_bar=True, logger=True)
     
     def on_before_optimizer_step(self, optimizer):
-        # 勾配にnanが含まれていれば0に修正する
         fix_gradients(self)
 
     def configure_optimizers(self) -> Any:
-        lr = self.train_cfg.learning_rate
-        weight_decay = self.train_cfg.weight_decay
+        lr = self.cfg.training.learning_rate
+        weight_decay = self.cfg.training.weight_decay
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        scheduler_params = self.train_cfg.lr_scheduler
+        scheduler_params = self.cfg.training.lr_scheduler
         if not scheduler_params.use:
             return optimizer
-
-        total_steps = scheduler_params.total_steps
-        assert total_steps is not None
-        assert total_steps > 0
+        
+        total_steps = self.trainer.estimated_stepping_batches
         
         final_div_factor_pytorch = scheduler_params.final_div_factor / scheduler_params.div_factor
         lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(

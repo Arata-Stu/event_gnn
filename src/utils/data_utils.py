@@ -2,6 +2,15 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
+dataset_2_hw = {
+    "dsec": (215, 320),
+    "gen1": (240, 304),
+}
+
+dataset_2_classes = {
+    "dsec": ("car", "pedestrian"),
+    "gen1": ("car", "pedestrian"),
+}
 
 def to_data(**kwargs):
     # convert all tracks to correct format
