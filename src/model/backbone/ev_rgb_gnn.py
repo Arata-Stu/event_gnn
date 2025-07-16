@@ -57,26 +57,28 @@ def _sample_features(x, y, b, image_feat, width, height, batch_size, image_sampl
 
 
 class EVRGBGNNBackbone(nn.Module):
-    def __init__(self, cfg: DictConfig, height: int, width: int):
+    def __init__(self, model_cfg: DictConfig, height: int, width: int):
         super().__init__()
         self.height = height
         self.width = width
+
+        self.num_classes = 2
         
         ## 出力される特徴マップのスケール種類
-        self.num_scales = cfg.num_scales
-        self.use_image = cfg.use_image
+        self.num_scales = model_cfg.num_scales
+        self.use_image = model_cfg.use_image
 
         channels = [1,
-                    int(cfg.base_width*32),
-                    int(cfg.after_pool_width*64),
-                    int(cfg.net_stem_width*128),
-                    int(cfg.net_stem_width*128),
-                    int(cfg.net_stem_width*128)]
-        
+                    int(model_cfg.base_width*32),
+                    int(model_cfg.after_pool_width*64),
+                    int(model_cfg.net_stem_width*128),
+                    int(model_cfg.net_stem_width*128),
+                    int(model_cfg.net_stem_width*128)]
+
         self.out_channels_cnn = []
         if self.use_image:
-            img_net = eval(cfg.img_net)
-            weights = weight[cfg.img_net] if cfg.img_net in weight else None
+            img_net = eval(model_cfg.img_net)
+            weights = weight[model_cfg.img_net] if model_cfg.img_net in weight else None
             self.out_channels_cnn = [256, 256]
             self.net = HookModule(img_net(weights=weights),
                                   input_channels=3,
@@ -93,41 +95,41 @@ class EVRGBGNNBackbone(nn.Module):
 
         output_channels = channels[1:]
 
-        self.events_to_graph = EV_TGN(cfg.ev_graph)
+        self.events_to_graph = EV_TGN(model_cfg.ev_graph)
 
-        poolings = compute_pooling_at_each_layer(cfg.pooling_dim_at_output, num_layers=4)
+        poolings = compute_pooling_at_each_layer(model_cfg.pool.pooling_dim_at_output, num_layers=4)
         max_vals_for_cartesian = 2*poolings[:,:2].max(-1).values
         self.strides = torch.ceil(poolings[-2:,1] * height).numpy().astype("int32").tolist()
         self.strides = self.strides[-self.num_scales:]
 
-        effective_radius = 2*float(int(cfg.ev_graph.radius * width + 2) / width)
+        effective_radius = 2*float(int(model_cfg.ev_graph.radius * width + 2) / width)
         self.edge_attrs = Cartesian(norm=True, cat=False, max_value=effective_radius)
 
-        self.conv_block1 = Layer(2+input_channels[0], output_channels[0], cfg=cfg)
+        self.conv_block1 = Layer(2+input_channels[0], output_channels[0], cfg=model_cfg.conv)
 
         cart1 = T.Cartesian(norm=True, cat=False, max_value=2*effective_radius)
-        self.pool1 = Pooling(poolings[0], width=width, height=height, batch_size=cfg.batch_size,
-                             transform=cart1, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
-        
-        self.layer2 = Layer(input_channels[1]+2, output_channels[1], cfg=cfg)
+        self.pool1 = Pooling(poolings[0], width=width, height=height, batch_size=model_cfg.batch_size,
+                             transform=cart1, aggr=model_cfg.pool.pooling_aggr, keep_temporal_ordering=model_cfg.pool.keep_temporal_ordering)
+
+        self.layer2 = Layer(input_channels[1]+2, output_channels[1], cfg=model_cfg.conv)
 
         cart2 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[1])
-        self.pool2 = Pooling(poolings[1], width=width, height=height, batch_size=cfg.batch_size,
-                             transform=cart2, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
+        self.pool2 = Pooling(poolings[1], width=width, height=height, batch_size=model_cfg.batch_size,
+                             transform=cart2, aggr=model_cfg.pool.pooling_aggr, keep_temporal_ordering=model_cfg.pool.keep_temporal_ordering)
 
-        self.layer3 = Layer(input_channels[2]+2, output_channels[2],  cfg=cfg)
+        self.layer3 = Layer(input_channels[2]+2, output_channels[2], cfg=model_cfg.conv)
 
         cart3 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[2])
-        self.pool3 = Pooling(poolings[2], width=width, height=height, batch_size=cfg.batch_size,
-                             transform=cart3, aggr=cfg.pooling_aggr, keep_temporal_ordering=cfg.keep_temporal_ordering)
+        self.pool3 = Pooling(poolings[2], width=width, height=height, batch_size=model_cfg.batch_size,
+                             transform=cart3, aggr=model_cfg.pool.pooling_aggr, keep_temporal_ordering=model_cfg.pool.keep_temporal_ordering)
 
-        self.layer4 = Layer(input_channels[3]+2, output_channels[3],  cfg=cfg)
+        self.layer4 = Layer(input_channels[3]+2, output_channels[3],  cfg=model_cfg.conv)
 
         cart4 = T.Cartesian(norm=True, cat=False, max_value=max_vals_for_cartesian[3])
-        self.pool4 = Pooling(poolings[3], width=width, height=height, batch_size=cfg.batch_size,
-                             transform=cart4, aggr='mean', keep_temporal_ordering=cfg.keep_temporal_ordering)
+        self.pool4 = Pooling(poolings[3], width=width, height=height, batch_size=model_cfg.batch_size,
+                             transform=cart4, aggr='mean', keep_temporal_ordering=model_cfg.pool.keep_temporal_ordering)
 
-        self.layer5 = Layer(input_channels[4]+2, output_channels[4],  cfg=cfg)
+        self.layer5 = Layer(input_channels[4]+2, output_channels[4],  cfg=model_cfg.conv)
 
         self.cache = []
 
@@ -228,5 +230,8 @@ class EVRGBGNNBackbone(nn.Module):
         out4.pooling = self.pool4.voxel_size[:3]
 
         output = [out3, out4]
+
+        if self.use_image:
+            return output[-self.num_scales:], image_outputs[-self.num_scales:]
 
         return output[-self.num_scales:]
