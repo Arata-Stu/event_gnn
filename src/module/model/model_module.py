@@ -15,7 +15,7 @@ class ModelModule(pl.LightningModule):
         super().__init__()
         
         self.cfg = cfg
-        height = 240
+        height = 215
         width = 320
         self.model = DAGR(cfg.model, height=height, width=width)
 
