@@ -132,8 +132,10 @@ class GNNHead(YOLOXHead):
         if self.training:
             # if we are only training the image detectors (pretraining),
             # we only need to minimize the loss at detections from the image branch.
+            imgs = None
             if self.use_image:
                 losses_image = self.get_losses(
+                    imgs,
                     image_out['x_shifts'],
                     image_out['y_shifts'],
                     image_out['expanded_strides'],
@@ -145,6 +147,7 @@ class GNNHead(YOLOXHead):
 
                 if not self.pretrain_cnn:
                     losses_events  = self.get_losses(
+                    imgs,
                     hybrid_out['x_shifts'],
                     hybrid_out['y_shifts'],
                     hybrid_out['expanded_strides'],
@@ -163,6 +166,7 @@ class GNNHead(YOLOXHead):
                 return losses_image
             else:
                 return self.get_losses(
+                    imgs,
                     hybrid_out['x_shifts'],
                     hybrid_out['y_shifts'],
                     hybrid_out['expanded_strides'],
