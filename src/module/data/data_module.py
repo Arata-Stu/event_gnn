@@ -31,7 +31,7 @@ class DataModule(pl.LightningDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
-                          batch_size=self.data_cfg.batch_size.train,
+                          batch_size=self.data_cfg.batch_size,
                           shuffle=True,
                           num_workers=self.data_cfg.num_workers.train,
                           follow_batch=['bbox', 'bbox0'],  
@@ -39,7 +39,7 @@ class DataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset,
-                          batch_size=self.data_cfg.batch_size.val,
+                          batch_size=self.data_cfg.batch_size,
                           shuffle=False,
                           num_workers=self.data_cfg.num_workers.val,
                           follow_batch=['bbox', 'bbox0'], 
@@ -47,7 +47,7 @@ class DataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset,
-                          batch_size=self.data_cfg.batch_size.test,
+                          batch_size=self.data_cfg.batch_size,
                           shuffle=False,
                           num_workers=self.data_cfg.num_workers.test,
                           follow_batch=['bbox', 'bbox0'], 

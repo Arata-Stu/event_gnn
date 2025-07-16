@@ -2,6 +2,7 @@ torch
 torchvision
 torch-geometric
 lightning
+hydra-core
 numpy
 h5py
 hdf5plugin
