@@ -77,7 +77,7 @@ class GNNHead(YOLOXHead):
 
         return cls_output, reg_output, obj_output
 
-    def forward(self, xin: Data, labels=None, imgs=None):
+    def forward(self, xin: Data, labels=None):
         # for events + image outputs
         hybrid_out = dict(outputs=[], origin_preds=[], x_shifts=[], y_shifts=[], expanded_strides=[])
         image_out = dict(outputs=[], origin_preds=[], x_shifts=[], y_shifts=[], expanded_strides=[])
@@ -128,7 +128,6 @@ class GNNHead(YOLOXHead):
             # we only need to minimize the loss at detections from the image branch.
             if self.use_image:
                 losses_image = self.get_losses(
-                    imgs,
                     image_out['x_shifts'],
                     image_out['y_shifts'],
                     image_out['expanded_strides'],
@@ -140,7 +139,6 @@ class GNNHead(YOLOXHead):
 
                 if not self.pretrain_cnn:
                     losses_events  = self.get_losses(
-                    imgs,
                     hybrid_out['x_shifts'],
                     hybrid_out['y_shifts'],
                     hybrid_out['expanded_strides'],
@@ -159,7 +157,6 @@ class GNNHead(YOLOXHead):
                 return losses_image
             else:
                 return self.get_losses(
-                    imgs,
                     hybrid_out['x_shifts'],
                     hybrid_out['y_shifts'],
                     hybrid_out['expanded_strides'],
