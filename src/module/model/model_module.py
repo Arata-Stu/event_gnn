@@ -17,11 +17,15 @@ class ModelModule(pl.LightningModule):
         self.cfg = cfg
         self.height = 215
         self.width = 320
+        # self.batch_size は config から取得しますが、実際のステップでは動的な値を使います
+        self.batch_size_from_cfg = cfg.data.batch_size 
         self.model = DAGR(cfg.model, height=self.height, width=self.width)
+        
+        self.save_hyperparameters(cfg)
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.started_training = True
-        if stage == "fit":
+        if stage == "fit" or stage is None:
             self.train_cfg = self.cfg.training
         elif stage == "val":
             pass
@@ -34,15 +38,32 @@ class ModelModule(pl.LightningModule):
     def training_step(self, data, batch_idx):
         self.started_training = True
         data = format_data(data)
-        targets = convert_to_training_format(data.bbox, data.bbox_batch, data.num_graphs)
+        correct_batch_size = data.num_graphs
+        
+        targets = convert_to_training_format(data.bbox, data.bbox_batch, correct_batch_size)
         if self.model.backbone.use_image:
-            targets0 = convert_to_training_format(data.bbox0, data.bbox0_batch, data.num_graphs)
+            targets0 = convert_to_training_format(data.bbox0, data.bbox0_batch, correct_batch_size)
             targets = (targets, targets0)
 
         outputs = self.model(data, reset=True, targets=targets)
         loss_dict = {k: v for k, v in outputs.items() if "loss" in k}
         loss = loss_dict.pop("loss")
-        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        
+        self.log_dict(loss_dict, 
+                      on_step=True, 
+                      on_epoch=True, 
+                      prog_bar=True, 
+                      logger=True,
+                      batch_size=correct_batch_size) 
+                      
+        self.log("train_loss", 
+                 loss,
+                 on_step=True,
+                 on_epoch=True,
+                 prog_bar=True,
+                 logger=True,
+                 batch_size=correct_batch_size) 
+
         return loss
 
     def validation_step(self, data, batch_idx):
@@ -89,8 +110,7 @@ class ModelModule(pl.LightningModule):
         total_steps = scheduler_params.total_steps
         assert total_steps is not None
         assert total_steps > 0
-        # Here we interpret the final lr as max_lr/final_div_factor.
-        # Note that Pytorch OneCycleLR interprets it as initial_lr/final_div_factor:
+        
         final_div_factor_pytorch = scheduler_params.final_div_factor / scheduler_params.div_factor
         lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer=optimizer,
