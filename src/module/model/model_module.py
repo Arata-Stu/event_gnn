@@ -56,10 +56,6 @@ class ModelModule(pl.LightningModule):
 
         return loss
 
-    def on_validation_epoch_start(self):
-        """バリデーションエポック開始時にバッファをクリア"""
-        self.buffer.clear()
-
     def validation_step(self, data, batch_idx):
         """各バッチで予測を行い、結果をバッファに蓄積"""
         data = format_data(data)
