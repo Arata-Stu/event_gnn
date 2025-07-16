@@ -5,7 +5,8 @@ from __future__ import print_function
 import os
 import contextlib
 from pycocotools.coco import COCO
-from detectron2.evaluation.fast_eval_api import COCOeval_opt as COCOeval
+from pycocotools.cocoeval import COCOeval
+# from detectron2.evaluation.fast_eval_api import COCOeval_opt as COCOeval
 #from detectron2.evaluation.fast_eval_api import COCOeval
 
 import numpy as np
