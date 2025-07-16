@@ -11,4 +11,4 @@ omegaconf
 numba 
 seaborn
 
-wandb==0.14.0
+wandb
