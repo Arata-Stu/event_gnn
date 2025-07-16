@@ -15,8 +15,8 @@ class ModelModule(pl.LightningModule):
         super().__init__()
         
         self.cfg = cfg
-        self.height, self.width = dataset_2_hw[cfg.dataset.name]
-        self.classes = dataset_2_classes[cfg.dataset.name]
+        self.height, self.width = dataset_2_hw[cfg.data.name]
+        self.classes = dataset_2_classes[cfg.data.name]
         self.model = DAGR(cfg.model, height=self.height, width=self.width)
 
         self.buffer = DetectionBuffer(height=self.height, width=self.width, classes=self.classes)
