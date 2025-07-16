@@ -41,7 +41,7 @@ class ModelModule(pl.LightningModule):
 
         outputs = self.model(data, reset=True, targets=targets)
         loss_dict = {k: v for k, v in outputs.items() if "loss" in k}
-        loss = loss_dict.pop("total_loss")
+        loss = loss_dict.pop("loss")
         self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
