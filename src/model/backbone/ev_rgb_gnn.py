@@ -134,6 +134,11 @@ class EVRGBGNNBackbone(nn.Module):
 
         self.cache = []
 
+    def get_output_sizes(self):
+        poolings = [self.pool3.voxel_size[:2], self.pool4.voxel_size[:2]]
+        output_sizes = [(1 / p + 1e-3).cpu().int().numpy().tolist()[::-1] for p in poolings]
+        return output_sizes
+
     def forward(self, data: Data, reset=True):
 
         if self.use_image:
