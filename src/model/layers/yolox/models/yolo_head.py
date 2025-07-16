@@ -397,14 +397,22 @@ class YOLOXHead(nn.Module):
         reg_weight = 5.0
         loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1
 
-        return (
-            loss,
-            reg_weight * loss_iou,
-            loss_obj,
-            loss_cls,
-            loss_l1,
-            num_fg / max(num_gts, 1),
-        )
+        # return (
+        #     loss,
+        #     reg_weight * loss_iou,
+        #     loss_obj,
+        #     loss_cls,
+        #     loss_l1,
+        #     num_fg / max(num_gts, 1),
+        # )
+        return {
+            "total_loss": loss,
+            "iou_loss": reg_weight * loss_iou,
+            "obj_loss": loss_obj,
+            "cls_loss": loss_cls,
+            "l1_loss": loss_l1,
+            "fg_ratio": num_fg / max(num_gts, 1),
+        }
 
     def get_l1_target(self, l1_target, gt, stride, x_shifts, y_shifts, eps=1e-8):
         l1_target[:, 0] = gt[:, 0] / stride - x_shifts
