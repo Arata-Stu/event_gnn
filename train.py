@@ -22,6 +22,7 @@ from lightning.pytorch.callbacks import LearningRateMonitor, ModelSummary
 from lightning.pytorch.strategies import DDPStrategy
 
 from src.callback.custom import get_ckpt_callback
+from src.callback.cache_callback import EmptyCacheCallback
 from src.utils.wandb_logger import get_wandb_logger, get_ckpt_path
 from src.module.utils.fetch import fetch_data_module, fetch_model_module
 
@@ -88,6 +89,7 @@ def main(config: DictConfig):
     callbacks.append(get_ckpt_callback(config))
     if config.training.lr_scheduler.use:
         callbacks.append(LearningRateMonitor(logging_interval='step'))
+    callbacks.append(EmptyCacheCallback())
     callbacks.append(ModelSummary(max_depth=2))
 
     logger.watch(model=module, log='all', log_freq=config.logging.train.log_model_every_n_steps, log_graph=True)
