@@ -15,9 +15,9 @@ class ModelModule(pl.LightningModule):
         super().__init__()
         
         self.cfg = cfg
-        height = 215
-        width = 320
-        self.model = DAGR(cfg.model, height=height, width=width)
+        self.height = 215
+        self.width = 320
+        self.model = DAGR(cfg.model, height=self.height, width=self.width)
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.started_training = True
