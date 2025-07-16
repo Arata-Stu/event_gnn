@@ -59,7 +59,7 @@ def main(config: DictConfig):
     # ---------------------
     # Data
     # ---------------------
-    data_module = fetch_data_module(config=config)
+    data_module = fetch_data_module(cfg=config)
 
     # ---------------------
     # Logging and Checkpoints
@@ -72,7 +72,7 @@ def main(config: DictConfig):
     # ---------------------
     # Model
     # ---------------------
-    module = fetch_model_module(config=config)
+    module = fetch_model_module(cfg=config)
     module_class = type(module)
     if ckpt_path is not None and config.wandb.resume_only_weights:
         print('Resuming only the weights instead of the full training state')
