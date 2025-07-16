@@ -24,6 +24,7 @@ class GNNHead(YOLOXHead):
     ):
         YOLOXHead.__init__(self,
                            num_classes=num_classes,
+                           width=model_cfg.yolo_stem_width,
                            strides=strides,
                            in_channels=in_channels,
                            act=act,

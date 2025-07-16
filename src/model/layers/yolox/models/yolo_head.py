@@ -1,18 +1,14 @@
-"""
-Original Yolox Head code with slight modifications
-"""
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+# Copyright (c) Megvii Inc. All rights reserved.
+
 import math
-from typing import Dict, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-try:
-    from torch import compile as th_compile
-except ImportError:
-    th_compile = None
 
-from ..utils import bboxes_iou
+from yolox.utils import bboxes_iou, meshgrid
 
 from .losses import IOUloss
 from .network_blocks import BaseConv, DWConv
@@ -20,14 +16,19 @@ from .network_blocks import BaseConv, DWConv
 
 class YOLOXHead(nn.Module):
     def __init__(
-            self,
-            num_classes=80,
-            strides=(8, 16, 32),
-            in_channels=(256, 512, 1024),
-            act="silu",
-            depthwise=False,
-            compile_cfg: Optional[Dict] = None,
+        self,
+        num_classes,
+        width=1.0,
+        strides=[8, 16, 32],
+        in_channels=[256, 512, 1024],
+        act="silu",
+        depthwise=False,
     ):
+        """
+        Args:
+            act (str): activation type of conv. Defalut value: "silu".
+            depthwise (bool): whether apply depthwise conv in conv branch. Defalut value: False.
+        """
         super().__init__()
 
         self.num_classes = num_classes
@@ -41,24 +42,11 @@ class YOLOXHead(nn.Module):
         self.stems = nn.ModuleList()
         Conv = DWConv if depthwise else BaseConv
 
-        self.output_strides = None
-        self.output_grids = None
-
-        # Automatic width scaling according to original YoloX channel dims.
-        # in[-1]/out = 4/1
-        # out = in[-1]/4 = 256 * width
-        # -> width = in[-1]/1024
-        largest_base_dim_yolox = 1024
-        largest_base_dim_from_input = in_channels[-1]
-        width = largest_base_dim_from_input/largest_base_dim_yolox
-
-        hidden_dim = int(256*width)
-
         for i in range(len(in_channels)):
             self.stems.append(
                 BaseConv(
-                    in_channels=in_channels[i],
-                    out_channels=hidden_dim,
+                    in_channels=int(in_channels[i] * width),
+                    out_channels=int(256 * width),
                     ksize=1,
                     stride=1,
                     act=act,
@@ -68,15 +56,15 @@ class YOLOXHead(nn.Module):
                 nn.Sequential(
                     *[
                         Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
                             ksize=3,
                             stride=1,
                             act=act,
                         ),
                         Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
                             ksize=3,
                             stride=1,
                             act=act,
@@ -88,15 +76,15 @@ class YOLOXHead(nn.Module):
                 nn.Sequential(
                     *[
                         Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
                             ksize=3,
                             stride=1,
                             act=act,
                         ),
                         Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
+                            in_channels=int(256 * width),
+                            out_channels=int(256 * width),
                             ksize=3,
                             stride=1,
                             act=act,
@@ -106,7 +94,7 @@ class YOLOXHead(nn.Module):
             )
             self.cls_preds.append(
                 nn.Conv2d(
-                    in_channels=hidden_dim,
+                    in_channels=int(256 * width),
                     out_channels=self.num_classes,
                     kernel_size=1,
                     stride=1,
@@ -115,7 +103,7 @@ class YOLOXHead(nn.Module):
             )
             self.reg_preds.append(
                 nn.Conv2d(
-                    in_channels=hidden_dim,
+                    in_channels=int(256 * width),
                     out_channels=4,
                     kernel_size=1,
                     stride=1,
@@ -124,7 +112,7 @@ class YOLOXHead(nn.Module):
             )
             self.obj_preds.append(
                 nn.Conv2d(
-                    in_channels=hidden_dim,
+                    in_channels=int(256 * width),
                     out_channels=1,
                     kernel_size=1,
                     stride=1,
@@ -139,18 +127,6 @@ class YOLOXHead(nn.Module):
         self.strides = strides
         self.grids = [torch.zeros(1)] * len(in_channels)
 
-        # According to Focal Loss paper:
-        self.initialize_biases(prior_prob=0.01)
-
-        ###### Compile if requested ######
-        if compile_cfg is not None:
-            compile_mdl = compile_cfg['enable']
-            if compile_mdl and th_compile is not None:
-                self.forward = th_compile(self.forward, **compile_cfg['args'])
-            elif compile_mdl:
-                print('Could not compile YOLOXHead because torch.compile is not available')
-        ##################################
-
     def initialize_biases(self, prior_prob):
         for conv in self.cls_preds:
             b = conv.bias.view(1, -1)
@@ -162,9 +138,8 @@ class YOLOXHead(nn.Module):
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
             conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
 
-    def forward(self, xin, labels=None):
-        train_outputs = []
-        inference_outputs = []
+    def forward(self, xin, labels=None, imgs=None):
+        outputs = []
         origin_preds = []
         x_shifts = []
         y_shifts = []
@@ -206,44 +181,35 @@ class YOLOXHead(nn.Module):
                         batch_size, -1, 4
                     )
                     origin_preds.append(reg_output.clone())
-                train_outputs.append(output)
-            inference_output = torch.cat(
-                [reg_output, obj_output.sigmoid(), cls_output.sigmoid()], 1
-            )
-            inference_outputs.append(inference_output)
 
-        # --------------------------------------------------------
-        # Modification: return decoded output also during training
-        # --------------------------------------------------------
-        losses = None
+            else:
+                output = torch.cat(
+                    [reg_output, obj_output.sigmoid(), cls_output.sigmoid()], 1
+                )
+
+            outputs.append(output)
+
         if self.training:
-            losses =  self.get_losses(
+            return self.get_losses(
+                imgs,
                 x_shifts,
                 y_shifts,
                 expanded_strides,
                 labels,
-                torch.cat(train_outputs, 1),
+                torch.cat(outputs, 1),
                 origin_preds,
                 dtype=xin[0].dtype,
             )
-            assert len(losses) == 6
-            losses = {
-                "loss": losses[0],
-                "iou_loss": losses[1],
-                "conf_loss": losses[2], # object-ness
-                "cls_loss": losses[3], # predicted class
-                "l1_loss": losses[4],
-                "num_fg": losses[5],
-            }
-        self.hw = [x.shape[-2:] for x in inference_outputs]
-        # [batch, n_anchors_all, 85]
-        outputs = torch.cat(
-            [x.flatten(start_dim=2) for x in inference_outputs], dim=2
-        ).permute(0, 2, 1)
-        if self.decode_in_inference:
-            return self.decode_outputs(outputs), losses
         else:
-            return outputs, losses
+            self.hw = [x.shape[-2:] for x in outputs]
+            # [batch, n_anchors_all, 85]
+            outputs = torch.cat(
+                [x.flatten(start_dim=2) for x in outputs], dim=2
+            ).permute(0, 2, 1)
+            if self.decode_in_inference:
+                return self.decode_outputs(outputs, dtype=xin[0].type())
+            else:
+                return outputs
 
     def get_output_and_grid(self, output, k, stride, dtype):
         grid = self.grids[k]
@@ -252,7 +218,7 @@ class YOLOXHead(nn.Module):
         n_ch = 5 + self.num_classes
         hsize, wsize = output.shape[-2:]
         if grid.shape[2:4] != output.shape[2:4]:
-            yv, xv = torch.meshgrid([torch.arange(hsize), torch.arange(wsize)])
+            yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
             grid = torch.stack((xv, yv), 2).view(1, 1, hsize, wsize, 2).type(dtype)
             self.grids[k] = grid
 
@@ -265,31 +231,29 @@ class YOLOXHead(nn.Module):
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride
         return output, grid
 
-    def decode_outputs(self, outputs):
-        if self.output_grids is None:
-            assert self.output_strides is None
-            dtype = outputs.dtype
-            device = outputs.device
-            grids = []
-            strides = []
-            for (hsize, wsize), stride in zip(self.hw, self.strides):
-                yv, xv = torch.meshgrid([torch.arange(hsize, device=device, dtype=dtype),
-                                         torch.arange(wsize, device=device, dtype=dtype)])
-                grid = torch.stack((xv, yv), 2).view(1, -1, 2)
-                grids.append(grid)
-                shape = grid.shape[:2]
-                strides.append(torch.full((*shape, 1), stride, device=device, dtype=dtype))
-            self.output_grids = torch.cat(grids, dim=1)
-            self.output_strides = torch.cat(strides, dim=1)
+    def decode_outputs(self, outputs, dtype):
+        grids = []
+        strides = []
+        for (hsize, wsize), stride in zip(self.hw, self.strides):
+            yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
+            grid = torch.stack((xv, yv), 2).view(1, -1, 2)
+            grids.append(grid)
+            shape = grid.shape[:2]
+            strides.append(torch.full((*shape, 1), stride))
+
+        grids = torch.cat(grids, dim=1).type(dtype)
+        strides = torch.cat(strides, dim=1).type(dtype)
+
         outputs = torch.cat([
-            (outputs[..., 0:2] + self.output_grids) * self.output_strides,
-            torch.exp(outputs[..., 2:4]) * self.output_strides,
+            (outputs[..., 0:2] + grids) * strides,
+            torch.exp(outputs[..., 2:4]) * strides,
             outputs[..., 4:]
         ], dim=-1)
         return outputs
 
     def get_losses(
         self,
+        imgs,
         x_shifts,
         y_shifts,
         expanded_strides,
@@ -357,7 +321,7 @@ class YOLOXHead(nn.Module):
                 except RuntimeError as e:
                     # TODO: the string might change, consider a better way
                     if "CUDA out of memory. " not in str(e):
-                        raise
+                        raise  # RuntimeError might not caused by CUDA OOM
 
                     torch.cuda.empty_cache()
                     (
@@ -604,3 +568,5 @@ class YOLOXHead(nn.Module):
             fg_mask_inboxes
         ]
         return num_fg, gt_matched_classes, pred_ious_this_matching, matched_gt_inds
+
+    
