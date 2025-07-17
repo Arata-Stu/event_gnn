@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Callable, Optional
 import torch
 import numpy as np
-from torch.utils.data import Dataset
+from torch_geometric.data import Dataset
 
 from .dataset import Gen1Det
 from .utils import tracks_to_array, filter_boxes
 from src.utils.data_utils import to_data
 
-class Gen1Detection(Dataset):
+class Gen1(Dataset):
     """
     DSECクラスの設計を模倣した、Gen1データセット用の高レベルインターフェース。
     """

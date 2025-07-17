@@ -1,12 +1,10 @@
 import sys
 import cv2
-import numpy as np # numpyのインポートを追加
+import numpy as np 
 from pathlib import Path
 from torch_geometric.loader import DataLoader
 
-# src.data.dataset.dsec.dataset_for_graph から DSEC をインポート
-from src.data.dataset.dsec.dataset_for_graph import DSEC
-# src.visualization.event_viz から draw_events_on_image をインポート
+from src.data.dataset.gen1.dataset_fot_graph import Gen1
 from src.visualization.event_viz import draw_events_on_image, map_polarity_to_channel_index
 
 # --- データセットのセットアップ ---
@@ -14,26 +12,24 @@ data_path = Path('/media/arata-22/AT_2TB/dataset/dsec').resolve()
 split = 'train'
 
 # DSECデータセットの初期化
-dataset = DSEC(
-    root=data_path,
-    split=split,
-    transform=None,
-    debug=False,
-    min_bbox_diag=15,
-    min_bbox_height=10,
-    scale=2,
-    cropped_height=430,
-    only_perfect_tracks=True,
-    demo=False,
-    no_eval=False
-)
+dataset = Gen1(root=data_path,
+               split=split,
+               transform=None,
+               height=240,
+               width=304,
+               period_ms=50,
+               window_size_ms=1000,
+               tolerance_ms=50,
+               skip_ts_us=int(5e5),
+               min_bbox_diag=30,
+               min_bbox_side=10)
 
 # DataLoaderのセットアップ
 # バッチサイズを1に設定し、単一のデータインスタンスを処理
 batch_size = 1
 test_loader = DataLoader(
     dataset, 
-    follow_batch=['bbox', "bbox0"], 
+    follow_batch=['bbox'], 
     batch_size=batch_size, 
     shuffle=False, 
     num_workers=0, 
@@ -51,8 +47,8 @@ for i, data in enumerate(test_loader):
     
     print(f"\n--- Batch {i+1} の処理中 ---")
 
-    # 1. 画像データの準備
-    img = data.image.squeeze(0).permute(1, 2, 0).cpu().numpy()
+    ## 空画像を用意 白色で初期化
+    img = np.ones((data.height, data.width, 3), dtype=np.uint8) * 255
 
     # 2. イベント座標 (x, y) と極性 (p) データの準備
     x_coords = data.pos[:, 0].cpu().numpy()
@@ -70,8 +66,6 @@ for i, data in enumerate(test_loader):
         mapped_p_for_drawing,
         alpha=0.5
     )
-    
-    # image_display_bgr = cv2.cvtColor(image_with_events_rgb, cv2.COLOR_RGB2BGR)
     
     # 5. 画像の表示とユーザーインタラクション
     cv2.imshow('Event Image Visualization', img)

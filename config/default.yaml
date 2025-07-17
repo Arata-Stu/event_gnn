@@ -1,32 +1,46 @@
-batch_size: 1
-
 data:
+  name: gen1
   data_path: ./datasets/
+  batch_size: 1
+    
+  num_workers: 
+    train: 4
+    val: 4
+    test: 4
+
+  augmentations:
+    trans: 0.1 ## 平行移動の最大ピクセル数 width * aug_trans height * aug_trans
+    zoom: 1.5 ## ズームの最大倍率
+    p_flip: 0.5 ## 水平方向の反転確率
 
 model:
   
+  name: dagr
+  batch_size: ${data.batch_size}
   use_image: true
+  no_events: false
   img_net: resnet18
+  pretrain_cnn: false
+  num_scales: 2
+  img_net_checkpoint : null
 
+  base_width: 0.5
+  after_pool_width: 1
+  net_stem_width: 0.5
+  yolo_stem_width: 0.5
+
+  conv:
+    edge_attr_dim: 2
+    aggr: sum
+    kernel_size: 5
+    activation: relu
+
+  pool: 
+    pooling_dim_at_output: 5x7
+    keep_temporal_ordering: true
+    pooling_aggr: max
 
   ev_graph:
     radius: 0.01
     max_neighbors: 16
     max_queue_size: 128
-
-  base_width: 0.5
-  after_pool_width: 1.0
-  net_stem_width: 1.0
-  num_scales: 2
-  pooling_dim_at_output: 5x7
-  keep_temporal_ordering: true
-
-  activation: relu
-  edge_attr_dim: 2
-  aggr: sum
-  kernel_size: 5
-  pooling_aggr: max
-
-  batch_size: ${batch_size}
-
-  
