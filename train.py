@@ -91,7 +91,7 @@ def main(config: DictConfig):
     if config.training.lr_scheduler.use:
         callbacks.append(LearningRateMonitor(logging_interval='step'))
     callbacks.append(EmptyCacheCallback())
-    callbacks.append(EMACallback(decay=config.weight_decay))
+    callbacks.append(EMACallback(decay=config.training.weight_decay))
     callbacks.append(ModelSummary(max_depth=2))
 
     logger.watch(model=module, log='all', log_freq=config.logging.train.log_model_every_n_steps, log_graph=True)
