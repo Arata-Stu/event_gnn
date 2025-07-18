@@ -82,5 +82,5 @@ class Gen1(Dataset):
     def preprocess_events(self, events: dict) -> dict:
         if len(events['t']) > 0:
             events['t'] = self.time_window + (events['t'] - events['t'][-1])
-        events['p'] = 2 * events['p'].astype(np.int8) - 1
+        # events['p'] = 2 * events['p'].astype(np.int8) - 1
         return events
