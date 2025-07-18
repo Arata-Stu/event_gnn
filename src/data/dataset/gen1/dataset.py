@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import numpy as np
 import h5py
+import hdf5plugin
 from .directory import Gen1Directory
 from . import io  
 
