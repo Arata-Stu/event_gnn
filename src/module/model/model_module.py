@@ -21,8 +21,6 @@ class ModelModule(pl.LightningModule):
 
         self.buffer = DetectionBuffer(height=self.height, width=self.width, classes=self.classes)
 
-        self.save_hyperparameters(cfg)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
